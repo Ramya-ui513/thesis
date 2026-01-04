@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Review Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        textarea:focus, input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result.fake {
+            background: #fee;
+            border: 2px solid #f66;
+            color: #c33;
+        }
+
+        .result.real {
+            background: #efe;
+            border: 2px solid #6c6;
+            color: #393;
+        }
+
+        .result.error {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+        }
+
+        .result h3 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 12px 15px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            text-align: center;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover .file-upload-label {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .batch-results {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .batch-result-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #ddd;
+        }
+
+        .batch-result-item.fake {
+            background: #fee;
+            border-left-color: #f66;
+        }
+
+        .batch-result-item.real {
+            background: #efe;
+            border-left-color: #6c6;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Fake Review Detection</h1>
+            <p>AI-Powered E-Commerce Review Authenticity Checker</p>
+        </div>
+
+        <div class="content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('single')">Single Review</button>
+                <button class="tab" onclick="switchTab('batch')">CSV File Review</button>
+            </div>
+
+            <div id="single-tab" class="tab-content active">
+                <form id="reviewForm">
+                    <div class="form-group">
+                        <label for="reviewText">Review Text *</label>
+                        <textarea id="reviewText" placeholder="Enter the review text here..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn">Analyze Review</button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing review...</p>
+                </div>
+
+                <div id="result" class="result"></div>
+            </div>
+
+            <div id="batch-tab" class="tab-content">
+                <form id="batchForm">
+                    <div class="form-group">
+                        <label>Upload CSV File</label>
+                        <div class="file-upload">
+                            <input type="file" id="csvFile" accept=".csv" required>
+                            <label for="csvFile" class="file-upload-label">
+                                <div>Click to select CSV file</div>
+                                <small>File should contain 'text_' or 'review_text' column</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn">Process Batch</button>
+                </form>
+
+                <div class="loading" id="batchLoading">
+                    <div class="spinner"></div>
+                    <p>Processing batch...</p>
+                </div>
+
+                <div id="batchResults" class="batch-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        document.getElementById('reviewForm').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const submitBtn = e.target.querySelector('.btn');
+            
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            submitBtn.disabled = true;
+            
+            const formData = {
+                review_text: document.getElementById('reviewText').value
+            };
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showResult(data.error, 'error');
+                } else {
+                    showSingleResult(data);
+                }
+            } catch (error) {
+                showResult('Error connecting to server', 'error');
+            } finally {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        };
+
+        document.getElementById('batchForm').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const loading = document.getElementById('batchLoading');
+            const results = document.getElementById('batchResults');
+            const submitBtn = e.target.querySelector('.btn');
+            
+            loading.style.display = 'block';
+            results.innerHTML = '';
+            submitBtn.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('file', document.getElementById('csvFile').files[0]);
+            
+            try {
+                const response = await fetch('/batch_predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    results.innerHTML = `<div class="result error" style="display: block;"><h3>Error</h3><p>${data.error}</p></div>`;
+                } else {
+                    showBatchResults(data.results);
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="result error" style="display: block;"><h3>Error</h3><p>Error connecting to server</p></div>`;
+            } finally {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        };
+
+        function showSingleResult(data) {
+            const result = document.getElementById('result');
+            const className = data.prediction === 'Fake' ? 'fake' : 'real';
+            const icon = data.prediction === 'Fake' ? '❌' : '✅';
+            
+            result.className = `result ${className}`;
+            result.innerHTML = `
+                <h3>${icon} Review is ${data.prediction}</h3>
+                <div class="result-details">
+                    <div class="result-item">
+                        <strong>Confidence:</strong> ${data.confidence}
+                    </div>
+                    <div class="result-item">
+                        <strong>Fake Probability:</strong> ${data.fake_probability}
+                    </div>
+                </div>
+            `;
+            result.style.display = 'block';
+        }
+
+        function showBatchResults(results) {
+            const container = document.getElementById('batchResults');
+            let html = `<h3>Processed ${results.length} reviews</h3>`;
+            
+            results.forEach((item, index) => {
+                const className = item.prediction === 'Fake' ? 'fake' : 'real';
+                const icon = item.prediction === 'Fake' ? '❌' : '✅';
+                
+                html += `
+                    <div class="batch-result-item ${className}">
+                        <strong>${icon} Review ${item.index + 1}: ${item.prediction}</strong>
+                        <p><em>"${item.review}"</em></p>
+                        <small>Confidence: ${item.confidence} | Fake Probability: ${item.fake_probability}</small>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            result.innerHTML = `<h3>${type === 'error' ? '⚠️' : 'ℹ️'} ${message}</h3>`;
+            result.style.display = 'block';
+        }
+
+        document.getElementById('csvFile').onchange = function() {
+            const label = this.nextElementSibling;
+            const fileName = this.files[0] ? this.files[0].name : 'Click to select CSV file';
+            label.querySelector('div').textContent = fileName;
+        };
+    </script>
+</body>
+</html>

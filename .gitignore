@@ -1,0 +1,40 @@
+# Dataset files - not needed to run the app
+fake reviews dataset.csv
+sample_batch_test.csv
+sample_reviews.txt
+datasetlink.txt
+
+# Jupyter Notebook - only for training
+Fake_Review_Detection.ipynb
+.ipynb_checkpoints/
+
+# CatBoost training info
+catboost_info/
+
+# Duplicate app file
+fake_review_app.py
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
