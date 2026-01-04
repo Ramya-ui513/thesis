@@ -8,6 +8,9 @@ datasetlink.txt
 Fake_Review_Detection.ipynb
 .ipynb_checkpoints/
 
+# Retraining script
+retrain_model.py
+
 # CatBoost training info
 catboost_info/
 
