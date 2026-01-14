@@ -4,27 +4,25 @@ import numpy as np
 import pandas as pd
 import re
 import string
-import os
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
 import warnings
+import joblib
 warnings.filterwarnings('ignore')
 
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('vader_lexicon', quiet=True)
-nltk.download('punkt_tab', quiet=True)
 
 app = Flask(__name__)
 
 def load_model():
     try:
-        with open('fake_review_detection_model.pkl', 'rb') as f:
-            model_data = pickle.load(f)
-        return model_data
-    except FileNotFoundError:
+        return joblib.load('fake_review_detection_model.joblib')
+    except Exception as e:
+        print("Model load error:", e)
         return None
 
 def clean_text(text):
@@ -33,7 +31,7 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-def extract_features(text, rating=5.0, category='Home_and_Kitchen_5'):
+def extract_features(text):
     model_data = load_model()
     if not model_data:
         return None
@@ -56,10 +54,8 @@ def extract_features(text, rating=5.0, category='Home_and_Kitchen_5'):
     unique_words = len(set(word_tokenize(cleaned_text)) - stop_words)
     avg_word_length = np.mean([len(word) for word in word_tokenize(cleaned_text)]) if word_tokenize(cleaned_text) else 0
     
-    try:
-        category_encoded = le_category.transform([category])[0]
-    except:
-        category_encoded = 0
+    rating = 5.0
+    category_encoded = 0
     
     numerical_features = np.array([
         rating, category_encoded, text_length, word_count, exclamation_count,
@@ -73,7 +69,7 @@ def extract_features(text, rating=5.0, category='Home_and_Kitchen_5'):
     
     return X_combined
 
-def predict_review(text, rating=5.0, category='Home_and_Kitchen_5'):
+def predict_review(text):
     model_data = load_model()
     if not model_data:
         return None, None, None
@@ -81,7 +77,7 @@ def predict_review(text, rating=5.0, category='Home_and_Kitchen_5'):
     model = model_data['model']
     le_label = model_data['label_encoder']
     
-    features = extract_features(text, rating, category)
+    features = extract_features(text)
     if features is None:
         return None, None, None
     
@@ -89,8 +85,14 @@ def predict_review(text, rating=5.0, category='Home_and_Kitchen_5'):
     probabilities = model.predict_proba(features)[0]
     
     result = le_label.inverse_transform([prediction])[0]
-    confidence = max(probabilities)
-    fake_probability = probabilities[1] if len(probabilities) > 1 else 0
+    
+    confidence = probabilities[prediction]
+    
+    if 'CG' in le_label.classes_:
+        fake_index = list(le_label.classes_).index('CG')
+        fake_probability = probabilities[fake_index]
+    else:
+        fake_probability = 0.0
     
     return result, confidence, fake_probability
 
@@ -104,13 +106,11 @@ def predict():
         data = request.get_json() if request.is_json else request.form
         
         review_text = data.get('review_text', '')
-        rating = float(data.get('rating', 5.0))
-        category = data.get('category', 'Home_and_Kitchen_5')
         
         if not review_text.strip():
             return jsonify({'error': 'Please enter a review text'})
         
-        result, confidence, fake_prob = predict_review(review_text, rating, category)
+        result, confidence, fake_prob = predict_review(review_text)
         
         if result is None:
             return jsonify({'error': 'Model not found. Please ensure the model file exists.'})
@@ -119,9 +119,7 @@ def predict():
             'prediction': 'Fake' if result == 'CG' else 'Real',
             'confidence': f'{confidence:.2%}',
             'fake_probability': f'{fake_prob:.2%}',
-            'review_text': review_text,
-            'rating': rating,
-            'category': category
+            'review_text': review_text
         }
         
         return jsonify(response)
@@ -141,10 +139,8 @@ def batch_predict():
         
         for index, row in df.iterrows():
             text = row.get('text_', row.get('review_text', ''))
-            rating = row.get('rating', 5.0)
-            category = row.get('category', 'Home_and_Kitchen_5')
             
-            result, confidence, fake_prob = predict_review(text, rating, category)
+            result, confidence, fake_prob = predict_review(text)
             results.append({
                 'index': index,
                 'review': text[:100] + '...' if len(text) > 100 else text,
@@ -166,5 +162,4 @@ if __name__ == '__main__':
     else:
         print("Warning: Model file not found. Please run the Jupyter notebook first to train and save the model.")
     
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=5555)
