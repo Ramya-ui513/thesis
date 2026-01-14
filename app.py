@@ -20,9 +20,10 @@ app = Flask(__name__)
 
 def load_model():
     try:
-        return joblib.load('fake_review_detection_model.joblib')
-    except Exception as e:
-        print("Model load error:", e)
+        with open('fake_review_detection_model.pkl', 'rb') as f:
+            model_data = pickle.load(f)
+        return model_data
+    except FileNotFoundError:
         return None
 
 def clean_text(text):
